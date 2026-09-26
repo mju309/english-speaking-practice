@@ -112,7 +112,7 @@
     <h1>영어 말하기 수행평가 연습장</h1>
     <div class="sub">
       빈칸은 사진처럼 뚫려 있고, <b>정답 보기</b>를 누르면 그 빈칸 자리에 <b>다른 색 글씨</b>로 바로 채워져.<br>
-      각 빈칸 끝의 <b>정답</b> 버튼을 누르면 <b>그 칸만</b> 따로 볼 수 있어. <b>🎤 말하기</b>를 누르면 음성을 영어 텍스트로 바꿔 정답과 비교해줘. 시험 모드는 시작과 동시에 <b>1분 타이머</b>가 돌아가.
+      각 빈칸 끝의 <b>정답</b> 버튼을 누르면 <b>그 칸만</b> 따로 볼 수 있어. <b>🎤 말하기</b>를 누르면 음성을 영어 텍스트로 바꿔 정답과 비교해줘. 시험 모드는 시작과 동시에 <b>1분 타이머</b>가 돌아가고, <b>60초가 되면 자동으로 타임 아웃 종료</b>돼.
     </div>
     <div class="tabs">
       <button class="tab active" data-tab="test">시험 모드</button>
@@ -187,6 +187,7 @@ let testIndex = 0;
 let timerRemaining = 60;
 let timerHandle = null;
 let timerStartedAt = null;
+let timedOut = false;
 let onlyFavMode = false;
 let practiceAllShown = false;
 
@@ -535,11 +536,8 @@ function startTimer(){
     updateTimerDisplay();
     if(timerRemaining <= 0){
       stopTimer();
-      const el = document.getElementById("testTimer");
-      if(el){
-        el.classList.add("done");
-        el.textContent = "00:00";
-      }
+      timedOut = true;
+      renderTest();
     }
   }, 250);
 }
@@ -558,6 +556,7 @@ function pickOne(unit){
 function startTest(){
   testSet = [pickOne(1), pickOne(2), pickOne(3), pickOne(4)];
   testIndex = 0;
+  timedOut = false;
   startTimer();
   renderTest();
 }
@@ -574,15 +573,16 @@ function renderTest(){
     $("#testShell").innerHTML = `<div class="empty">먼저 테스트 시작을 눌러줘.</div>`;
     return;
   }
-  if(testIndex >= testSet.length){
+  if(testIndex >= testSet.length || timedOut){
     stopTimer();
     const wrongInSet = testSet.filter(x=>wrongs.includes(x.id));
-    const elapsedUsed = Math.min(60, Math.max(0, 60-timerRemaining));
+    const elapsedUsed = timedOut ? 60 : Math.min(60, Math.max(0, 60-timerRemaining));
+    const completedCount = Math.min(testIndex, 4);
     $("#testShell").innerHTML = `
-      <div style="font-size:24px;font-weight:900;margin-bottom:6px">테스트 완료!</div>
-      <div class="note">총 4문제를 끝냈어. 이번 세트 문제를 다시 볼 수 있어.</div>
+      <div style="font-size:24px;font-weight:900;margin-bottom:6px">${timedOut ? "⏰ 타임 아웃!" : "테스트 완료!"}</div>
+      <div class="note">${timedOut ? "60초가 지나서 테스트가 자동으로 종료됐어." : "총 4문제를 끝냈어. 이번 세트 문제를 다시 볼 수 있어."}</div>
       <div class="statusRow" style="margin:14px 0 10px">
-        <div class="pill">진행 완료: 4 / 4</div>
+        <div class="pill">진행: ${completedCount} / 4</div>
         <div class="pill">걸린 시간: ${elapsedUsed}초</div>
         <div class="pill">이번 세트 오답 체크: ${wrongInSet.length}개</div>
       </div>
@@ -644,7 +644,7 @@ function renderTest(){
   `;
   updateTimerDisplay();
 }
-function nextQuestion(){ if(!testSet.length) return; testIndex++; renderTest(); }
+function nextQuestion(){ if(!testSet.length || timedOut) return; testIndex++; renderTest(); }
 function speakCurrentFull(){
   const item=currentTestItem();
   if(item) speak(item.full);
